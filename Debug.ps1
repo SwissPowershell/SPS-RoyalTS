@@ -37,7 +37,7 @@ Write-Host $TimeSpentString -ForegroundColor Magenta
 BREAK
 $Version = '0.0.5'
 $ReleaseTag = 'alpha'
-$Message = 'The commit script updates the module description and the readme file with the new version and prerelease tag.'
+$Message = 'Clean commit'
 $DoBranch = $False
 ## Update the prerelease tag
 $ModuleManifest = Test-ModuleManifest -Path $ModuleDescription
@@ -60,7 +60,6 @@ Set-Content -Value $ReadMeContent -Path $ReadmeFile.FullName
 ## Update the module description
 $PSD1Content = Get-Content -Path $ModuleDescription | ForEach-Object {$_ -replace "Prerelease = '$PrereleaseTag'", "Prerelease = '$NewPrereleaseTag'"} | ForEach-Object {$_ -replace "ModuleVersion = '$($ModuleManifest.Version)'", "ModuleVersion = '$Version'"}
 Set-Content -Path $ModuleDescription -Value $PSD1Content
-
 
 ## Commit the changes
 $CommitMessage = "Update module to version $($Version)-$($NewPrereleaseTag): $($Message)"

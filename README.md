@@ -2,7 +2,7 @@
 This module is used to interact with RoyalTS using PowerShell.
 
 # Version
-Version: 0.0.5-alpha_1
+Version: 0.0.5-alpha_2
 
 ## Pre-requisites
 - PowerShell 5.1 or later
