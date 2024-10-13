@@ -37,7 +37,7 @@ Write-Host $TimeSpentString -ForegroundColor Magenta
 BREAK
 $Version = '0.0.2'
 $ReleaseTag = 'alpha'
-
+$Message = 'Update of debug.ps1 add a commit helper'
 
 ## Update the prerelease tag
 $ModuleManifest = Test-ModuleManifest -Path $ModuleDescription
@@ -56,7 +56,7 @@ $NewPrereleaseTag = "$($ReleaseTag)_$($NewPrereleaseNumber)"
 $PSD1Content = Get-Content -Path $ModuleDescription | ForEach-Object {$_ -replace "Prerelease = '$PrereleaseTag'", "Prerelease = '$NewPrereleaseTag'"} | ForEach-Object {$_ -replace "ModuleVersion = '$($ModuleManifest.Version)'", "ModuleVersion = '$Version'"}
 Set-Content -Path $ModuleDescription -Value $PSD1Content
 ## Commit the changes
-$CommitMessage = "Update module to version $($Version)-$($NewPrereleaseTag)"
+$CommitMessage = "Update module to version $($Version)-$($NewPrereleaseTag): $($Message)"
 Git add --all
 Git commit -a -am $CommitMessage
 Git push
