@@ -1,6 +1,9 @@
 # SPS-RoyalTS
 This module is used to interact with RoyalTS using PowerShell.
 
+# Version
+Version: 0.0.5-alpha_1
+
 ## Pre-requisites
 - PowerShell 5.1 or later
 - RoyalTS 5 or later

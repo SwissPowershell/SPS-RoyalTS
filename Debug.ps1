@@ -37,7 +37,7 @@ Write-Host $TimeSpentString -ForegroundColor Magenta
 BREAK
 $Version = '0.0.5'
 $ReleaseTag = 'alpha'
-$Message = 'for ad group rule add the ability to use regexp on both Group SamAccountName and Computer SamAccountName'
+$Message = 'The commit script updates the module description and the readme file with the new version and prerelease tag.'
 $DoBranch = $False
 ## Update the prerelease tag
 $ModuleManifest = Test-ModuleManifest -Path $ModuleDescription
@@ -52,9 +52,16 @@ if (($PrereleaseArray[0] -ne $ReleaseTag) -or ($Version -ne $ModuleManifest.Vers
     $NewPrereleaseNumber = ([int] $PrereleaseArray[-1]) + 1
 }
 $NewPrereleaseTag = "$($ReleaseTag)_$($NewPrereleaseNumber)"
+## Update the readme file
+$ReadmeFile = Get-ChildItem -Path $PSScriptRoot -Filter 'README.md' | Select-Object -First 1
+$ReadMeContent = Get-Content -Path $ReadmeFile.FullName
+$ReadMeContent = $ReadMeContent -replace "Version: $($ModuleManifest.Version)-$($PrereleaseTag)", "Version: $($Version)-$($NewPrereleaseTag)"
+Set-Content -Value $ReadMeContent -Path $ReadmeFile.FullName
 ## Update the module description
 $PSD1Content = Get-Content -Path $ModuleDescription | ForEach-Object {$_ -replace "Prerelease = '$PrereleaseTag'", "Prerelease = '$NewPrereleaseTag'"} | ForEach-Object {$_ -replace "ModuleVersion = '$($ModuleManifest.Version)'", "ModuleVersion = '$Version'"}
 Set-Content -Path $ModuleDescription -Value $PSD1Content
+
+
 ## Commit the changes
 $CommitMessage = "Update module to version $($Version)-$($NewPrereleaseTag): $($Message)"
 if ($DoBranch) {
