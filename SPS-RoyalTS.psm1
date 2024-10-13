@@ -259,7 +259,14 @@ Function New-DefaultRoyalTSConfiguration {
         }Catch{
             Throw $_
         }
-        
+        $MSGBoxResult = Show-RTSMessageBox -Message @"
+The default configuration file has been created at [$($Path)]
+
+Open for editing?
+"@ -Buttons YesNo -Icon Information
+        if ($MSGBoxResult -eq 'Yes') {
+            Start-Process -FilePath 'Notepad.exe' -Argumentlist $Path
+        }
     }Else{
         $Message = "The default configuration file [$($DefaultConfigPath)} does not exist"
         Throw $Message
