@@ -24,12 +24,9 @@ Class RoyalTSADGroupRule {
     [String] ${Name}
     [String] ${Domain}
     [String] ${Path}
-    [RoyalTSRegexp] ${Regexp}
+    [RoyalTSRegexp] ${GroupNameRegexp}
+    [RoyalTSRegexp] ${ComputerNameRegexp}
     RoyalTSADGroupRule([String] $Name, [String] $Domain) {
-        $this.Name = $Name
-        $this.Domain = $Domain
-    }
-    RoyalTSADGroupRule([String] $Name, [String] $Domain,[System.Xml.XmlElement] $Regexp) {
         $this.Name = $Name
         $this.Domain = $Domain
     }
@@ -37,7 +34,8 @@ Class RoyalTSADGroupRule {
         $this.Name = $ADGroup.Name
         $this.Domain = $ADGroup.Domain
         $this.Path = $ADGroup.Path
-        $this.Regexp = [RoyalTSRegexp]::new($ADGroup.Regexp)
+        $this.GroupNameRegexp = [RoyalTSRegexp]::new($ADGroup.GroupNameRegexp)
+        $this.ComputerNameRegexp = [RoyalTSRegexp]::new($ADGroup.ComputerNameRegexp)
     }
     [System.Collections.Generic.List[RoyalTSObject]] GetComputers() {
         $List = [System.Collections.Generic.List[RoyalTSObject]]::new()

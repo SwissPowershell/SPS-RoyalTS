@@ -35,9 +35,9 @@ Write-Host $TimeSpentString -ForegroundColor Magenta
 
 
 BREAK
-$Version = '0.0.4'
+$Version = '0.0.5'
 $ReleaseTag = 'alpha'
-$Message = 'Update of debug.ps1 add reset prerelease tag if new version'
+$Message = 'for ad group rule add the ability to use regexp on both Group SamAccountName and Computer SamAccountName'
 $DoBranch = $False
 ## Update the prerelease tag
 $ModuleManifest = Test-ModuleManifest -Path $ModuleDescription

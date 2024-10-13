@@ -14,7 +14,10 @@
                     Name : The name of the AD group (mandatory,Accepts wildcards)
                     Domain : The domain of the AD group (mandatory,Accepts wildcards,Accept Tokens)
                     Path : The name of the root folder where to add the computer (optional)
-                    Regexp : a Regularexpression (Optional)
+                    GroupNameRegexp : a Regularexpression to create subtree based on the group SamAccountName (Optional)
+                        Regex : the regular expression to apply (mandatory)
+                        RXGroupOrder : if the regular expression contains groups you can define the order of the groups to use as subfolders (Optional)
+                    ComputerNameRegexp : a Regularexpression to create subtree based on the Computer SamAccountName (Optional)
                         Regex : the regular expression to apply (mandatory)
                         RXGroupOrder : if the regular expression contains groups you can define the order of the groups to use as subfolders (Optional)
             ### ComputerNameRules
@@ -24,7 +27,7 @@
                     Name : The name of the computer (mandatory,Accepts wildcards,Accept Tokens)
                     Domain : The domain of the computer (mandatory,Accepts wildcards,Accept Tokens)
                     Path : The name of the root folder where to add the computer (optional)
-                    Regexp : a Regularexpression (Optional)
+                    Regexp : a Regularexpression to create subtree based on the Computer SamAccountName (Optional)
                         Pattern : the regular expression to apply (mandatory)
                         GroupOrder : if the regular expression contains groups you can define the order of the groups to use as subfolders (Optional)
         ## SingleComputers
@@ -49,10 +52,14 @@
                     <Name></Name>
                     <Domain></Domain>
                     <Path></Path>
-                    <Regexp>
+                    <GroupNameRegexp>
                         <Pattern></Pattern>
                         <GroupOrder></GroupOrder>
-                    </Regexp>
+                    </GroupNameRegexp>
+                    <ComputerNameRegexp>
+                        <Pattern></Pattern>
+                        <GroupOrder></GroupOrder>
+                    </ComputerNameRegexp>
                 </ADGroup>
             </ADGroupRules>
             <ComputerNameRules>
