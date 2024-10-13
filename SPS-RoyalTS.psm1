@@ -1,9 +1,129 @@
 Add-Type -AssemblyName System.Windows.Forms
+#region Define the Module Class and Enums
 Enum MessageType {
     Information
     Warning
     Error
 }
+#endregion Define the Module Class and Enums
+#region Define the RoyalTSObjects Class and Enums
+Enum RoyalTSObjectType {
+    Folder
+    Credential
+    DynamicCredential
+    ToDo
+    Information
+    CommandTask
+    KeySequenceTask
+    SecureGateway
+    RoyalServer
+    RemoteDesktopGateway
+    RemoteDesktopConnection
+    TerminalConnection
+    WebConnection
+    VNCConnection
+    FileTransferConnection
+    TeamViewerConnection
+    ExternalApplicationConnection
+    PerformanceConnection
+    VMwareConnection
+    HyperVConnection
+    WindowsEventsConnection
+    WindowsServicesConnection
+    WindowsProcessesConnection
+    TerminalServicesConnection
+    PowerShellConnection
+}
+Class RoyalTSJson {
+    [System.Collections.Generic.List[RoyalTSObject]] ${Objects} = [System.Collections.Generic.List[RoyalTSObject]]::new()
+    RoyalTSJson(){}
+    [void] Add([RoyalTSObject] $Object) {
+        $this.Objects.Add($Object)
+    }
+    [String] ToConsole() {
+        Return ($this | ConvertTo-Json -Depth 100 | Write-Host)
+    }
+    static [RoyalTSJson] FromRules([System.Xml.XmlElement] ${DynamicRules}) {
+        $RoyalTSJson = [RoyalTSJson]::new()
+        # Handle the Rules
+        $Rules = $DynamicRules.Rules
+        if ($Rules) {
+            # Handle the ADGroupRules
+            $AllADGroupRules = $Rules.ADGroupRules
+            if ($AllADGroupRules) {
+                ForEach($ADGroupRule in $AllADGroupRules.ADGroup) {
+                    # Get AdGroups and their Computers matching this rule and add them to the RoyalTSJson
+                }
+            }
+            # Handle the ComputerNameRules
+            $AllComputerNameRules = $Rules.ComputerNameRules
+            if ($AllComputerNameRules) {
+                ForEach($ADGroupRule in $AllComputerNameRules.ComputerName) {
+                    # Get the computers matching this rule and add them to the RoyalTSJson
+                }
+            }
+        }
+        # Handle the SingleComputers
+        $AllSingleComputers = $DynamicRules.SingleComputers
+        if ($AllSingleComputers) {
+            ForEach($SingleComputer in $AllSingleComputers.SingleComputer) {
+                # Get the single computer and add it to the RoyalTSJson
+            }
+        }
+        Return $RoyalTSJson
+    }
+}
+Class RoyalTSObject {
+    [String] ${Id} = [Guid]::NewGuid().ToString()
+    [String] ${Name}
+    [String] ${Description}
+    [RoyalTSObjectType] ${Type}
+    RoyalTSObject(){}
+    RoyalTSObject([String] $Name, [String] $Description) {
+        $this.Name = $Name
+        $this.Description = $Description
+    }
+    RoyalTSObject([String] $Name, [String] $Description, [RoyalTSObjectType] $Type) {
+        $this.Name = $Name
+        $this.Description = $Description
+        $this.Type = $Type
+    }
+}
+Class RoyalTSFolder : RoyalTSObject {
+    [System.Collections.Generic.List[RoyalTSObject]] ${Objects} = [System.Collections.Generic.List[RoyalTSObject]]::new()
+    RoyalTSFolder(){
+        $this.Type = [RoyalTSObjectType]::Folder
+    }
+    RoyalTSFolder([String] $Name) {
+        $this.Name = $Name
+        $this.Type = [RoyalTSObjectType]::Folder
+    }
+    RoyalTSFolder([String] $Name, [String] $Description) {
+        $this.Name = $Name
+        $this.Description = $Description
+        $this.Type = [RoyalTSObjectType]::Folder
+    }
+    [void] Add([Object] $Object) {
+        $this.Objects.Add($Object)
+    }
+}
+Class RoyalTSRemoteDesktopConnection : RoyalTSObject {
+    [String] ${ComputerName}
+    [String] ${UserName}
+    [String] ${Path}
+    [Boolean] ${CredentialsFromParent} = $false
+    RoyalTSRemoteDesktopConnection(){}
+    RoyalTSRemoteDesktopConnection([String] $Name, [String] $Description, [String] $ComputerName, [String] $UserName, [String] $Path) {
+        $this.Name = $Name
+        $this.Description = $Description
+        $this.Type = [RoyalTSObjectType]::RemoteDesktopConnection
+        $this.ComputerName = $ComputerName
+        $this.UserName = $UserName
+        $this.Path = $Path
+        $this.Type = [RoyalTSObjectType]::RemoteDesktopConnection
+    }
+}
+#endregion Define the RoyalTSObjects Class and Enums
 Function Write-RTSLog {
     [CmdletBinding()]
     Param(
@@ -127,6 +247,8 @@ Function New-RoyalTSDynamicFolder {
         # Check if the configuration file has dynamic folders
         if ($DynamicFolderConfig) {
             # Get the dynamic folders rule
+            $Json = [RoyalTSJson]::FromRules($DynamicFolderConfig)
+            $Json.ToConsole()
         }Else{
             $Message = "The configuration file $($ConfigurationFile) does not have any dynamic folder entry the function $($MyInvocation.MyCommand) will not do anything"
             Write-RTSLog -Message $Message -Type Warning
@@ -137,3 +259,39 @@ Function New-RoyalTSDynamicFolder {
         Write-Verbose -Message "Ending the function $($MyInvocation.MyCommand)"
     }
 }
+
+##Expose the classes and enums
+# Define the types to export with type accelerators.
+$ExportableTypes =@(
+    [RoyalTSObjectType],
+    [RoyalTSJson],
+    [RoyalTSObject],
+    [RoyalTSFolder],
+    [RoyalTSRemoteDesktopConnection]
+)
+# Get the internal TypeAccelerators class to use its static methods.
+$TypeAcceleratorsClass = [psobject].Assembly.GetType(
+    'System.Management.Automation.TypeAccelerators'
+)
+# Ensure none of the types would clobber an existing type accelerator.
+# If a type accelerator with the same name exists, throw an exception.
+$ExistingTypeAccelerators = $TypeAcceleratorsClass::Get
+foreach ($Type in $ExportableTypes) {
+    if ($Type.FullName -in $ExistingTypeAccelerators.Keys) {
+        $Message = @(
+            "Unable to register type accelerator '$($Type.FullName)'"
+            'Accelerator already exists.'
+        ) -join ' - '
+        Write-Warning -Message $Message
+    }
+}
+# Add type accelerators for every exportable type.
+foreach ($Type in $ExportableTypes) {
+    $TypeAcceleratorsClass::Add($Type.FullName, $Type)
+}
+# Remove type accelerators when the module is removed.
+$MyInvocation.MyCommand.ScriptBlock.Module.OnRemove = {
+    foreach($Type in $ExportableTypes) {
+        $TypeAcceleratorsClass::Remove($Type.FullName)
+    }
+}.GetNewClosure()
