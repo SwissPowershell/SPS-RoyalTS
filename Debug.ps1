@@ -35,17 +35,17 @@ Write-Host $TimeSpentString -ForegroundColor Magenta
 
 
 BREAK
-$Version = '0.0.3'
+$Version = '0.0.4'
 $ReleaseTag = 'alpha'
-$Message = 'Update of debug.ps1 add a branch helper to the commit part'
+$Message = 'Update of debug.ps1 add reset prerelease tag if new version'
 $DoBranch = $False
 ## Update the prerelease tag
 $ModuleManifest = Test-ModuleManifest -Path $ModuleDescription
 $PrereleaseTag = $ModuleManifest.PrivateData.PSData.Prerelease
 $PrereleaseArray = $PrereleaseTag -split '\.|_'
 [Int] $NewPrereleaseNumber = $PrereleaseArray[-1]
-if ($PrereleaseArray[0] -ne $ReleaseTag) {
-    # Not the same tag so we reset the prerelease number
+if (($PrereleaseArray[0] -ne $ReleaseTag) -or ($Version -ne $ModuleManifest.Version)) {
+    # Not the same tag or the same version so we reset the prerelease number
     $NewPrereleaseNumber = 0 
 } else {
     # Same tag so we increment the prerelease number
