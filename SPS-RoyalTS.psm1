@@ -71,12 +71,11 @@ Function New-DefaultRoyalTSConfiguration {
 Function New-RoyalTSDynamicFolder {
     [CmdletBinding()]
     Param(
-        [String] ${Name} = 'Default'
+        [String] ${Name} = 'Default',
+        [String] ${ConfigurationFile} = $(Join-Path -Path $Env:APPDATA -ChildPath "SPS-RoyalTS\RoyalTSConfiguration_$($Name).xml")
     )
     Begin {
         Write-Verbose -Message "Starting the function $($MyInvocation.MyCommand)"
-        # Define the location of the configuration file
-        $ConfigurationFile = Join-Path -Path $Env:APPDATA -ChildPath "SPS-RoyalTS\RoyalTSConfiguration_$($Name).xml"
         # Check if the configuration file exists
         if (-not (Test-Path -Path $ConfigurationFile)) {
             Write-Verbose -Message "The configuration file [$($ConfigurationFile)] does not exist"
