@@ -35,7 +35,7 @@ Write-Host $TimeSpentString -ForegroundColor Magenta
 
 
 BREAK
-$Version = '0.0.1'
+$Version = '0.0.2'
 $ReleaseTag = 'alpha'
 ## Update the prerelease tag
 $ModuleManifest = Test-ModuleManifest -Path $ModuleDescription
@@ -51,7 +51,7 @@ if ($PrereleaseArray[-1] -ne $ReleaseTag) {
 }
 $NewPrereleaseTag = "$($ReleaseTag)_$($NewPrereleaseNumber + 1)"
 ## Update the module description
-$PSD1Content = Get-Content -Path $ModuleDescription | ForEach-Object {$_ -replace "Prerelease = '$PrereleaseTag'", "Prerelease = '$NewPrereleaseTag'"}
+$PSD1Content = Get-Content -Path $ModuleDescription | ForEach-Object {$_ -replace "Prerelease = '$PrereleaseTag'", "Prerelease = '$NewPrereleaseTag'"} | ForEach-Object {$_ -replace "Version = '$($ModuleManifest.Version)'", "Version = '$Version'"}
 Set-Content -Path $ModuleDescription -Value $PSD1Content
 ## Commit the changes
 $CommitMessage = "Update module to version $($ModuleManifest.Version)-$($NewPrereleaseTag)"
