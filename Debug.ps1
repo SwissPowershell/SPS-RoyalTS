@@ -38,6 +38,7 @@ BREAK
 $Version = '0.0.2'
 $ReleaseTag = 'alpha'
 
+
 ## Update the prerelease tag
 $ModuleManifest = Test-ModuleManifest -Path $ModuleDescription
 $PrereleaseTag = $ModuleManifest.PrivateData.PSData.Prerelease
