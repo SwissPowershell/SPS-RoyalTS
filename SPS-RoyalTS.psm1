@@ -5,6 +5,73 @@ Enum MessageType {
     Warning
     Error
 }
+Class RoyalTSRegexp {
+    [String] ${Pattern}
+    [String[]] ${GroupOrder}
+    RoyalTSRegexp([String] $Pattern) {
+        $this.Pattern = $Pattern
+    }
+    RoyalTSRegexp([String] $Pattern,[String[]] $GroupOrder) {
+        $this.Pattern = $Pattern
+        $this.GroupOrder = $GroupOrder
+    }
+    RoyalTSRegexp([System.Xml.XmlElement] $Regexp) {
+        $this.Pattern = $Regexp.Pattern
+        $this.GroupOrder = $Regexp.GroupOrder -split ',|;|\s'
+    }
+}
+Class RoyalTSADGroupRule {
+    [String] ${Name}
+    [String] ${Domain}
+    [String] ${Path}
+    [RoyalTSRegexp] ${Regexp}
+    RoyalTSADGroupRule([String] $Name, [String] $Domain) {
+        $this.Name = $Name
+        $this.Domain = $Domain
+    }
+    RoyalTSADGroupRule([String] $Name, [String] $Domain,[System.Xml.XmlElement] $Regexp) {
+        $this.Name = $Name
+        $this.Domain = $Domain
+    }
+    RoyalTSADGroupRule([System.Xml.XmlElement] $ADGroup) {
+        $this.Name = $ADGroup.Name
+        $this.Domain = $ADGroup.Domain
+        $this.Path = $ADGroup.Path
+        $this.Regexp = [RoyalTSRegexp]::new($ADGroup.Regexp)
+    }
+    [System.Collections.Generic.List[RoyalTSObject]] GetComputers() {
+        $List = [System.Collections.Generic.List[RoyalTSObject]]::new()
+        # Get the computers matching the rule
+        
+        Return $List
+    }
+}
+Class RoyalTSADComputerRule {
+    [String] ${Name}
+    [String] ${Domain}
+    [String] ${Path}
+    [RoyalTSRegexp] ${Regexp}
+    RoyalTSADComputerRule([String] $Name, [String] $Domain) {
+        $this.Name = $Name
+        $this.Domain = $Domain
+    }
+    RoyalTSADComputerRule([String] $Name, [String] $Domain,[System.Xml.XmlElement] $Regexp) {
+        $this.Name = $Name
+        $this.Domain = $Domain
+    }
+    RoyalTSADComputerRule([System.Xml.XmlElement] $ADComputer) {
+        $this.Name = $ADComputer.Name
+        $this.Domain = $ADComputer.Domain
+        $this.Path = $ADComputer.Path
+        $this.Regexp = [RoyalTSRegexp]::new($ADComputer.Regexp)
+    }
+    [System.Collections.Generic.List[RoyalTSObject]] GetComputers() {
+        $List = [System.Collections.Generic.List[RoyalTSObject]]::new()
+        # Get the computers matching the rule
+        
+        Return $List
+    }
+}
 #endregion Define the Module Class and Enums
 #region Define the RoyalTSObjects Class and Enums
 Enum RoyalTSObjectType {
@@ -53,13 +120,21 @@ Class RoyalTSJson {
             if ($AllADGroupRules) {
                 ForEach($ADGroupRule in $AllADGroupRules.ADGroup) {
                     # Get AdGroups and their Computers matching this rule and add them to the RoyalTSJson
+                    $ADGroupRuleObject = [RoyalTSADGroupRule]::new($ADGroupRule)
+                    ForEach($Computer in $ADGroupRuleObject.GetComputers()) {
+                        $RoyalTSJson.Add($Computer)
+                    }
                 }
             }
             # Handle the ComputerNameRules
             $AllComputerNameRules = $Rules.ComputerNameRules
             if ($AllComputerNameRules) {
-                ForEach($ADGroupRule in $AllComputerNameRules.ComputerName) {
+                ForEach($ADComputerNameRule in $AllComputerNameRules.ComputerName) {
                     # Get the computers matching this rule and add them to the RoyalTSJson
+                    $ADComputerRuleObject = [RoyalTSADComputerRule]::new($ADComputerNameRule)
+                    ForEach($Computer in $ADComputerRuleObject.GetComputers()) {
+                        $RoyalTSJson.Add($Computer)
+                    }
                 }
             }
         }
@@ -71,6 +146,9 @@ Class RoyalTSJson {
             }
         }
         Return $RoyalTSJson
+    }
+    [void] BuildFolders() {
+        # Build the folders based on the objects path
     }
 }
 Class RoyalTSObject {

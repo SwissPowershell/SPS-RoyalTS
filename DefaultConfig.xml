@@ -13,6 +13,7 @@
                 The fields are as follow :
                     Name : The name of the AD group (mandatory,Accepts wildcards)
                     Domain : The domain of the AD group (mandatory,Accepts wildcards,Accept Tokens)
+                    Path : The name of the root folder where to add the computer (optional)
                     Regexp : a Regularexpression (Optional)
                         Regex : the regular expression to apply (mandatory)
                         RXGroupOrder : if the regular expression contains groups you can define the order of the groups to use as subfolders (Optional)
@@ -22,9 +23,10 @@
                 The fields are as follow :
                     Name : The name of the computer (mandatory,Accepts wildcards,Accept Tokens)
                     Domain : The domain of the computer (mandatory,Accepts wildcards,Accept Tokens)
+                    Path : The name of the root folder where to add the computer (optional)
                     Regexp : a Regularexpression (Optional)
-                        Regex : the regular expression to apply (mandatory)
-                        RXGroupOrder : if the regular expression contains groups you can define the order of the groups to use as subfolders (Optional)
+                        Pattern : the regular expression to apply (mandatory)
+                        GroupOrder : if the regular expression contains groups you can define the order of the groups to use as subfolders (Optional)
         ## SingleComputers
             You can add some single computers using their name
             the fileds are as follow :
@@ -46,9 +48,10 @@
                 <ADGroup>
                     <Name></Name>
                     <Domain></Domain>
+                    <Path></Path>
                     <Regexp>
-                        <Regex></Regex>
-                        <RXGroupOrder></RXGroupOrder>
+                        <Pattern></Pattern>
+                        <GroupOrder></GroupOrder>
                     </Regexp>
                 </ADGroup>
             </ADGroupRules>
@@ -56,9 +59,10 @@
                 <ComputerName>
                     <Name></Name>
                     <Domain></Domain>
+                    <Path></Path>
                     <Regexp>
-                        <Regex></Regex>
-                        <RXGroupOrder></RXGroupOrder>
+                        <Pattern></Pattern>
+                        <GroupOrder></GroupOrder>
                     </Regexp>
                 </ComputerName>
             </ComputerNameRules>
@@ -68,6 +72,7 @@
                 <Name></Name>
                 <Domain></Domain>
                 <UserName></UserName>
+                <Path></Path>
             </SingleComputer>
         </SingleComputers>
     </DynamicFolder> 
