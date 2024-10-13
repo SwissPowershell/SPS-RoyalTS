@@ -35,10 +35,10 @@ Write-Host $TimeSpentString -ForegroundColor Magenta
 
 
 BREAK
-$Version = '0.0.2'
+$Version = '0.0.3'
 $ReleaseTag = 'alpha'
-$Message = 'Update of debug.ps1 add a commit helper'
-
+$Message = 'Update of debug.ps1 add a branch helper to the commit part'
+$DoBranch = $False
 ## Update the prerelease tag
 $ModuleManifest = Test-ModuleManifest -Path $ModuleDescription
 $PrereleaseTag = $ModuleManifest.PrivateData.PSData.Prerelease
@@ -57,6 +57,12 @@ $PSD1Content = Get-Content -Path $ModuleDescription | ForEach-Object {$_ -replac
 Set-Content -Path $ModuleDescription -Value $PSD1Content
 ## Commit the changes
 $CommitMessage = "Update module to version $($Version)-$($NewPrereleaseTag): $($Message)"
-Git add --all
-Git commit -a -am $CommitMessage
-Git push
+if ($DoBranch) {
+    # Do a fork of the main branch
+    Git checkout -b "release/$Version-$NewPrereleaseTag"
+    Git push --set-upstream origin release/$($Version)-$($NewPrereleaseTag)
+}else{
+    # commit the current branch to main
+    Git commit -a -am $CommitMessage
+    Git push --set-upstream origin main
+}
