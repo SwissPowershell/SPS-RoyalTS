@@ -51,7 +51,7 @@ if ($PrereleaseArray[0] -ne $ReleaseTag) {
     # Same tag so we increment the prerelease number
     $NewPrereleaseNumber = ([int] $PrereleaseArray[-1]) + 1
 }
-$NewPrereleaseTag = "$($ReleaseTag)_$($NewPrereleaseNumber + 1)"
+$NewPrereleaseTag = "$($ReleaseTag)_$($NewPrereleaseNumber)"
 ## Update the module description
 $PSD1Content = Get-Content -Path $ModuleDescription | ForEach-Object {$_ -replace "Prerelease = '$PrereleaseTag'", "Prerelease = '$NewPrereleaseTag'"} | ForEach-Object {$_ -replace "ModuleVersion = '$($ModuleManifest.Version)'", "ModuleVersion = '$Version'"}
 Set-Content -Path $ModuleDescription -Value $PSD1Content
