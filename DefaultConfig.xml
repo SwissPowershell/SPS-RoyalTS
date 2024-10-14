@@ -36,7 +36,7 @@
         ## SingleComputers
             You can add some single computers using their name
             the fileds are as follow :
-                Name : The name to show (Optional,if ommited the Name will be used)
+                Name : The name to show (Optional,if ommited the ComputerName will be used)
 				ComputerName : The name of the computer (mandatory)
                 UserName : The username to use to connect to the computer
 				DefaultComputerName : if you use a gateway (wallix) you can put the default computer to connect to
@@ -111,7 +111,7 @@
         </Rules>
         <SingleComputers>
             <SingleComputer>
-                <Name>ContosoComputer01</Name>
+                <Name>FirstComputer</Name>
 				<ComputerName>ContosoComputer01</ComputerName>
                 <UserName>$Env.UserName$</UserName>
                 <DefaultComputerName></DefaultComputerName>
