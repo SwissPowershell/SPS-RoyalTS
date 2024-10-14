@@ -428,16 +428,17 @@ Class RoyalTSJson {
             ForEach($Computer in $AllSingleComputers.SingleComputer) {
                 if ($Computer.Name -Notlike '') {
                     # Get the single computer and add it to the RoyalTSJson
-                    $ComputerObject = [RoyalTSRemoteDesktopConnection]::New()
-                    $ComputerObject.Name = $Computer.Name
-                    $ComputerObject.UserName = $Computer.UserName
-                    $ComputerObject.Path = $Computer.Path
-                    if ($Computer.DefaultComputerName -like '') {
-                        $ComputerObject.ComputerName = $Computer.ComputerName
-                    }Else{
-                        $ComputerObject.ComputerName = $Computer.DefaultComputerName
-                    }
-                    $RoyalTSJson.Add($ComputerObject)
+                    # $ComputerObject = [RoyalTSRemoteDesktopConnection]::New()
+                    # $ComputerObject.Name = $Computer.Name
+                    # $ComputerObject.UserName = $Computer.UserName
+                    # $ComputerObject.Path = $Computer.Path
+                    # if ($Computer.DefaultComputerName -like '') {
+                    #     $ComputerObject.ComputerName = $Computer.ComputerName
+                    # }Else{
+                    #     $ComputerObject.ComputerName = $Computer.DefaultComputerName
+                    # }
+                    # $RoyalTSJson.Add($ComputerObject)
+                    $RoyalTSJson.Add([RoyalTSRemoteDesktopConnection]::new($Computer))
                 }
             }
         }
@@ -496,6 +497,18 @@ Class RoyalTSRemoteDesktopConnection : RoyalTSObject {
         $this.ComputerName = $ComputerName
         $this.UserName = $UserName
         $this.Path = $Path
+        $this.Type = [RoyalTSObjectType]::RemoteDesktopConnection
+    }
+    RoyalTSRemoteDesktopConnection([System.Xml.XmlElement] $XMLElement) {
+        $this.Name = $XMLElement.Name
+        $this.Description = $XMLElement.Description
+        if ($this.DefaultComputerName -like '') {
+            $this.ComputerName = $XMLElement.ComputerName
+        }Else{
+            $this.ComputerName = $XMLElement.DefaultComputerName
+        }
+        $this.UserName = $XMLElement.UserName
+        $this.Path = $XMLElement.Path
         $this.Type = [RoyalTSObjectType]::RemoteDesktopConnection
     }
 }
