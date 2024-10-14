@@ -12,51 +12,59 @@
                 You can add multiple AD groups
                 The fields are as follow :
                     Name : The name of the AD group (mandatory,Accepts wildcards)
-                    Domain : The domain of the AD group (mandatory,Accepts wildcards,Accept Tokens)
+                    UserName : The user name to use
                     Path : The name of the root folder where to add the computer (optional)
+                    DefaultComputerName : if you use a gateway (wallix) you can put the default computer to connect to
                     GroupNameRegexp : a Regularexpression to create subtree based on the group SamAccountName (Optional)
                         Regex : the regular expression to apply (mandatory)
                         RXGroupOrder : if the regular expression contains groups you can define the order of the groups to use as subfolders (Optional)
                     ComputerNameRegexp : a Regularexpression to create subtree based on the Computer SamAccountName (Optional)
+                        Property : the property on which to apply the regexp
                         Regex : the regular expression to apply (mandatory)
                         RXGroupOrder : if the regular expression contains groups you can define the order of the groups to use as subfolders (Optional)
             ### ComputerNameRules
                 The Computer Name rule intend to add computers based on their name
                 You can add multiple computer names
                 The fields are as follow :
-                    Name : The name of the computer (mandatory,Accepts wildcards,Accept Tokens)
-                    Domain : The domain of the computer (mandatory,Accepts wildcards,Accept Tokens)
+                    UserName : The user name to use
                     Path : The name of the root folder where to add the computer (optional)
-                    Regexp : a Regularexpression to create subtree based on the Computer SamAccountName (Optional)
+                    DefaultComputerName : if you use a gateway (wallix) you can put the default computer to connect to
+                    GroupNameRegexp : a Regularexpression to create subtree based on the group SamAccountName (Optional)
+                        Property : the property on which to apply the regexp
                         Pattern : the regular expression to apply (mandatory)
                         GroupOrder : if the regular expression contains groups you can define the order of the groups to use as subfolders (Optional)
         ## SingleComputers
             You can add some single computers using their name
             the fileds are as follow :
-                Name : The name of the computer (mandatory,Accepts wildcards,Accept Tokens)
-                Domain : The domain of the computer
+                Name : The name to show (Optional,if ommited the Name will be used)
+				ComputerName : The name of the computer (mandatory)
                 UserName : The username to use to connect to the computer
-        
+				DefaultComputerName : if you use a gateway (wallix) you can put the default computer to connect to
+				Path : The name of the root folder where to add the computer (optional)
+				
         ! the default file contain one example for each type of rule
-    
+
     ! Token and automatic variable
         the following token can be used in the configuration file
         $Name$ : The name of the dynamic folder
-    
+
 -->
     <RemoteFile></RemoteFile>
     <DynamicFolder>
         <Rules>
             <ADGroupRules>
                 <ADGroup>
-                    <Name></Name>
-                    <Domain></Domain>
-                    <Path></Path>
+                    <Name>ContoSRV*</Name>
+                    <UserName>$Env.UserName$</UserName>
+                    <Path>Contoso Servers</Path>
+                    <DefaultComputerName></DefaultComputerName>
                     <GroupNameRegexp>
-                        <Pattern></Pattern>
-                        <GroupOrder></GroupOrder>
+                        <Property>SamAccountName</Property>
+                        <Pattern>^ContosoSRV(?&lt;ENV&gt;.{4})(?&lt;ZONE&gt;.{4})$</Pattern>
+                        <GroupOrder>ENV,ZONE</GroupOrder>
                     </GroupNameRegexp>
                     <ComputerNameRegexp>
+                        <Property></Property>
                         <Pattern></Pattern>
                         <GroupOrder></GroupOrder>
                     </ComputerNameRegexp>
@@ -64,23 +72,51 @@
             </ADGroupRules>
             <ComputerNameRules>
                 <ComputerName>
-                    <Name></Name>
-                    <Domain></Domain>
-                    <Path></Path>
-                    <Regexp>
-                        <Pattern></Pattern>
-                        <GroupOrder></GroupOrder>
-                    </Regexp>
+                    <Name>ContosoPC*</Name>
+                    <Path>Contoso Workstations</Path>
+                    <UserName>$Env.UserName</UserName>
+                    <DefaultComputerName></DefaultComputerName>
+                    <ComputerNameRegexp>
+                        <Property>SamAccountName</Property>
+                        <Pattern>^ContosoPC(?&lt;Env&gt;.{3}).{4}\$$</Pattern>
+                        <GroupOrder>Env</GroupOrder>
+                    </ComputerNameRegexp>
+                </ComputerName>
+                <ComputerName>
+                    <Name>PC*</Name>
+                    <Path>Computers</Path>
+                    <UserName>$Env.UserName$</UserName>
+                    <DefaultComputerName></DefaultComputerName>
+                    <ComputerNameRegexp>
+                        <Property>SamAccountName</Property>
+                        <Pattern>^PC(?&lt;Env&gt;.{3}).{4}\$$</Pattern>
+                        <GroupOrder>Env</GroupOrder>
+                    </ComputerNameRegexp>
                 </ComputerName>
             </ComputerNameRules>
+            <VIComputerRules>
+                <VIComputer>
+                    <Server>VIServer</Server>
+                    <Name>ContosoVM*</Name>
+                    <Path>Contoso VM</Path>
+                    <UserName>$Env.UserName</UserName>
+                    <DefaultComputerName></DefaultComputerName>
+                    <ComputerNameRegexp>
+                        <Property>SamAccountName</Property>
+                        <Pattern>^ContosoVM(?&lt;Env&gt;.{3}).{4}\$$</Pattern>
+                        <GroupOrder>Env</GroupOrder>
+                    </ComputerNameRegexp>
+                </VIComputer>
+            </VIComputerRules>
         </Rules>
         <SingleComputers>
             <SingleComputer>
-                <Name></Name>
-                <Domain></Domain>
-                <UserName></UserName>
-                <Path></Path>
+                <Name>ContosoComputer01</Name>
+				<ComputerName>ContosoComputer01</ComputerName>
+                <UserName>$Env.UserName$</UserName>
+                <DefaultComputerName></DefaultComputerName>
+				<Path>Single</Path>
             </SingleComputer>
         </SingleComputers>
-    </DynamicFolder> 
+    </DynamicFolder>
 </RoyalTSConfiguration>
