@@ -5,19 +5,27 @@ Set-StrictMode -Version Latest
 # Set the error preference
 $ErrorActionPreference = 'Stop'
 # Set the verbose preference in order to get some insights
-$VerbosePreference = 'Continue'
+# $VerbosePreference = 'Continue'
 $DebugStart = Get-Date
-
+Write-Host '------------------- Starting script -------------------' -ForegroundColor Yellow
 ############################
 # Test your functions here #
 ############################
 
-Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
-$VerbosePreference = 'Continue'
+# $Name = 'biz.lodh.com'
+# $RoyalTSObject = New-RoyalTSDynamicFolder -Domain $Name -Name $Name
+# $RoyalTSObject.ToConsole() | out-file "c:\Temp\RoyalTS_$($Name).json"
+# $RoyalTSObject.ToConsole()
 
-New-RoyalTSDynamicFolder -Verbose
-# git add --all;Git commit -a -am 'Initial Commit';Git push
+$Name = 'test.biz.lodh.com'
+$RoyalTSObject = New-RoyalTSDynamicFolder -Domain $Name -Name $Name
+$RoyalTSObject.ToConsole() | out-file "c:\Temp\RoyalTS_$($Name).json"
+$RoyalTSObject.ToConsole()
+
+# $Name = 'dev.biz.lodh.com'
+# $RoyalTSObject = New-RoyalTSDynamicFolder -Domain $Name -Name $Name
+# $RoyalTSObject.ToConsole() | out-file "c:\Temp\RoyalTS_$($Name).json"
+# $RoyalTSObject.ToConsole()
 
 ##################################
 # End of the tests show metrics #
@@ -46,7 +54,7 @@ $PrereleaseArray = $PrereleaseTag -split '\.|_'
 [Int] $NewPrereleaseNumber = $PrereleaseArray[-1]
 if (($PrereleaseArray[0] -ne $ReleaseTag) -or ($Version -ne $ModuleManifest.Version)) {
     # Not the same tag or the same version so we reset the prerelease number
-    $NewPrereleaseNumber = 0 
+    $NewPrereleaseNumber = 0
 } else {
     # Same tag so we increment the prerelease number
     $NewPrereleaseNumber = ([int] $PrereleaseArray[-1]) + 1
