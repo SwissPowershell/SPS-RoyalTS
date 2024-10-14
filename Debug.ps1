@@ -43,9 +43,9 @@ Write-Host $TimeSpentString -ForegroundColor Magenta
 
 
 BREAK
-$Version = '0.0.5'
+$Version = '0.1.0'
 $ReleaseTag = 'alpha'
-$Message = 'Clean commit'
+$Message = 'Cleaned up the code and added some new features'
 $DoBranch = $False
 ## Update the prerelease tag
 $ModuleManifest = Test-ModuleManifest -Path $ModuleDescription

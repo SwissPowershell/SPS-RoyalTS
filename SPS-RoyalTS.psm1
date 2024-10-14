@@ -6,6 +6,7 @@ Enum MessageType {
     Error
 }
 Class RoyalTSRegexp {
+    # this class help to define a Regexp pattern and the group order
     [String] ${Property} = 'SamAccountName'
     [String] ${Pattern}
     [String[]] ${GroupOrder} = @()
@@ -20,6 +21,33 @@ Class RoyalTSRegexp {
         $this.Property = $Regexp.Property
         $this.Pattern = $Regexp.Pattern
         $this.GroupOrder = $Regexp.GroupOrder -split ',|;|\s'
+    }
+    [Microsoft.PowerShell.Commands.MatchInfo] Match([String] $Value) {
+        $Match = $Value | Select-String -Pattern $this.Pattern -AllMatches
+        Return $Match
+    }
+    [String] GetPath([String] $Path, [String] $Value) {
+        $Match = $this.Match($Value)
+        if ($Match) {
+            $Groups = $Match.Matches.Groups | Where-Object {$_.Name -ne 0} # exclude the group 0 as it's the whole regex match
+            if ($this.GroupOrder.Count -gt 0) {
+                ForEach ($GroupName in $this.GroupOrder) {
+                    $Value = $Groups | Where-Object Name -eq $GroupName | Select-Object -ExpandProperty 'Value'
+                    if ($Value -notlike '') {
+                        $Path = "$($Path)\$($Value)"
+                    }
+                }
+            }Else{
+                # no order defined use the detected order
+                ForEach ($GroupName in $Groups) {
+                    $Value = $GroupName.Value
+                    if ($Value -notlike '') {
+                        $Path = "$($Path)\$($Value)"
+                    }
+                }
+            }
+        }
+        Return $Path
     }
 }
 Class RoyalTSADGroupRule {
@@ -66,28 +94,29 @@ Class RoyalTSADGroupRule {
                 $ThisGroupPath = $RootPath
                 if ($This.GroupNameRegexp.Pattern -notlike '') {
                     # there is a pattern defined create the path from it
-                    $RegexResult = $ADGroup.$($this.GroupNameRegexp.Property) | Select-String -Pattern $This.GroupNameRegexp.Pattern -AllMatches
-                    if ($RegexResult) {
-                        # the regex match, apply the order to define the Path
-                        $RXgroups = $RegexResult.Matches.Groups | Where-Object {$_.Name -ne 0} # Exclude the group 0 as it's the whole regex match
-                        if ($This.GroupNameRegexp.GroupOrder.Count -gt 0) {
-                            # Apply the group Order
-                            ForEach ($RXGroupName in $This.GroupNameRegexp.GroupOrder) {
-                                $Value = $RXGroups | Where-Object Name -eq $RXGroupName | Select-Object -ExpandProperty 'Value'
-                                if ($Value -notlike '') {
-                                    $ThisGroupPath = "$($ThisGroupPath)\$($Value)"
-                                }
-                            }
-                        }Else{
-                            # no order defined use the detected order
-                            ForEach ($RXGroupName in $RXGroups) {
-                                $Value = $RXGroupName.Value
-                                if ($Value -notlike ''){
-                                    $ThisGroupPath = "$($ThisGroupPath)\$($Value)"
-                                }
-                            }
-                        }
-                    }
+                    # $RegexResult = $ADGroup.$($this.GroupNameRegexp.Property) | Select-String -Pattern $This.GroupNameRegexp.Pattern -AllMatches
+                    # if ($RegexResult) {
+                    #     # the regex match, apply the order to define the Path
+                    #     $RXgroups = $RegexResult.Matches.Groups | Where-Object {$_.Name -ne 0} # Exclude the group 0 as it's the whole regex match
+                    #     if ($This.GroupNameRegexp.GroupOrder.Count -gt 0) {
+                    #         # Apply the group Order
+                    #         ForEach ($RXGroupName in $This.GroupNameRegexp.GroupOrder) {
+                    #             $Value = $RXGroups | Where-Object Name -eq $RXGroupName | Select-Object -ExpandProperty 'Value'
+                    #             if ($Value -notlike '') {
+                    #                 $ThisGroupPath = "$($ThisGroupPath)\$($Value)"
+                    #             }
+                    #         }
+                    #     }Else{
+                    #         # no order defined use the detected order
+                    #         ForEach ($RXGroupName in $RXGroups) {
+                    #             $Value = $RXGroupName.Value
+                    #             if ($Value -notlike ''){
+                    #                 $ThisGroupPath = "$($ThisGroupPath)\$($Value)"
+                    #             }
+                    #         }
+                    #     }
+                    # }
+                    $ThisGroupPath = $This.GroupNameRegexp.GetPath($ThisGroupPath,$ADGroup.$($this.GroupNameRegexp.Property))
                 }
                 # Retrieve all computers from the group
                 Try {
@@ -102,26 +131,27 @@ Class RoyalTSADGroupRule {
                     # Build the path if apply
                     if ($this.ComputerNameRegexp.Pattern -notlike '') {
                         # there is a patter defined create the path from it
-                        $RegexResult = $Computer.($this.ComputerNameRegexp.Property) | Select-String -Pattern $This.ComputerNameRegexp.Pattern -AllMatches
-                        if ($RegexResult) {
-                            $RXgroups = $RegexResult.Matches.Groups | Where-Object {$_.Name -ne 0} # Exclude the group 0 as it's the whole regex match
-                            if ($This.ComputerNameRegexp.GroupOrder -notlike '') {
-                                ForEach ($RXGroupName in $This.ComputerNameRegexp.GroupOrder) {
-                                    $Value = $RXGroups | Where-Object Name -eq $RXGroupName | Select-Object -ExpandProperty 'Value'
-                                    if ($Value -notlike '') {
-                                        $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
-                                    }
-                                }
-                            }Else{
-                                # no order defined use the detected order
-                                ForEach ($RXGroupName in $RXGroups) {
-                                    $Value = $RXGroupName.Value
-                                    if ($Value -notlike ''){
-                                        $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
-                                    }
-                                }
-                            }
-                        }
+                        # $RegexResult = $Computer.($this.ComputerNameRegexp.Property) | Select-String -Pattern $This.ComputerNameRegexp.Pattern -AllMatches
+                        # if ($RegexResult) {
+                        #     $RXgroups = $RegexResult.Matches.Groups | Where-Object {$_.Name -ne 0} # Exclude the group 0 as it's the whole regex match
+                        #     if ($This.ComputerNameRegexp.GroupOrder -notlike '') {
+                        #         ForEach ($RXGroupName in $This.ComputerNameRegexp.GroupOrder) {
+                        #             $Value = $RXGroups | Where-Object Name -eq $RXGroupName | Select-Object -ExpandProperty 'Value'
+                        #             if ($Value -notlike '') {
+                        #                 $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
+                        #             }
+                        #         }
+                        #     }Else{
+                        #         # no order defined use the detected order
+                        #         ForEach ($RXGroupName in $RXGroups) {
+                        #             $Value = $RXGroupName.Value
+                        #             if ($Value -notlike ''){
+                        #                 $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
+                        #             }
+                        #         }
+                        #     }
+                        # }
+                        $ThisComputerPath = $This.ComputerNameRegexp.GetPath($ThisComputerPath,$Computer.($this.ComputerNameRegexp.Property))
                     }
                     # Get the AD Object
                     $Computer = Get-ADComputer -Identity $Computer
@@ -182,26 +212,27 @@ Class RoyalTSADComputerRule {
                 # Build the path if apply
                 if ($this.ComputerNameRegexp.Pattern -notlike '') {
                     # there is a patter defined create the path from it
-                    $RegexResult = $Computer.($this.ComputerNameRegexp.Property) | Select-String -Pattern $This.ComputerNameRegexp.Pattern -AllMatches
-                    if ($RegexResult) {
-                        $RXgroups = $RegexResult.Matches.Groups | Where-Object {$_.Name -ne 0} # Exclude the group 0 as it's the whole regex match
-                        if ($This.ComputerNameRegexp.GroupOrder -notlike '') {
-                            ForEach ($RXGroupName in $This.ComputerNameRegexp.GroupOrder) {
-                                $Value = $RXGroups | Where-Object Name -eq $RXGroupName | Select-Object -ExpandProperty 'Value'
-                                if ($Value -notlike '') {
-                                    $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
-                                }
-                            }
-                        }Else{
-                            # no order defined use the detected order
-                            ForEach ($RXGroupName in $RXGroups) {
-                                $Value = $RXGroupName.Value
-                                if ($Value -notlike ''){
-                                    $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
-                                }
-                            }
-                        }
-                    }
+                    # $RegexResult = $Computer.($this.ComputerNameRegexp.Property) | Select-String -Pattern $This.ComputerNameRegexp.Pattern -AllMatches
+                    # if ($RegexResult) {
+                    #     $RXgroups = $RegexResult.Matches.Groups | Where-Object {$_.Name -ne 0} # Exclude the group 0 as it's the whole regex match
+                    #     if ($This.ComputerNameRegexp.GroupOrder -notlike '') {
+                    #         ForEach ($RXGroupName in $This.ComputerNameRegexp.GroupOrder) {
+                    #             $Value = $RXGroups | Where-Object Name -eq $RXGroupName | Select-Object -ExpandProperty 'Value'
+                    #             if ($Value -notlike '') {
+                    #                 $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
+                    #             }
+                    #         }
+                    #     }Else{
+                    #         # no order defined use the detected order
+                    #         ForEach ($RXGroupName in $RXGroups) {
+                    #             $Value = $RXGroupName.Value
+                    #             if ($Value -notlike ''){
+                    #                 $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
+                    #             }
+                    #         }
+                    #     }
+                    # }
+                    $ThisComputerPath = $This.ComputerNameRegexp.GetPath($ThisComputerPath,$Computer.($this.ComputerNameRegexp.Property))
                 }
                 # Build the computer object
                 $ComputerObject = [RoyalTSRemoteDesktopConnection]::New()
@@ -259,26 +290,27 @@ Class RoyalTSVIComputerRule {
                 $ThisComputerPath = $RootPath
                 if ($this.ComputerNameRegexp.Pattern -notlike '') {
                     # there is a patter defined create the path from it
-                    $RegexResult = $Computer.($this.ComputerNameRegexp.Property) | Select-String -Pattern $This.ComputerNameRegexp.Pattern -AllMatches
-                    if ($RegexResult) {
-                        $RXgroups = $RegexResult.Matches.Groups | Where-Object {$_.Name -ne 0} # Exclude the group 0 as it's the whole regex match
-                        if ($This.ComputerNameRegexp.GroupOrder -notlike '') {
-                            ForEach ($RXGroupName in $This.ComputerNameRegexp.GroupOrder) {
-                                $Value = $RXGroups | Where-Object Name -eq $RXGroupName | Select-Object -ExpandProperty 'Value'
-                                if ($Value -notlike '') {
-                                    $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
-                                }
-                            }
-                        }Else{
-                            # no order defined use the detected order
-                            ForEach ($RXGroupName in $RXGroups) {
-                                $Value = $RXGroupName.Value
-                                if ($Value -notlike ''){
-                                    $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
-                                }
-                            }
-                        }
-                    }
+                    # $RegexResult = $Computer.($this.ComputerNameRegexp.Property) | Select-String -Pattern $This.ComputerNameRegexp.Pattern -AllMatches
+                    # if ($RegexResult) {
+                    #     $RXgroups = $RegexResult.Matches.Groups | Where-Object {$_.Name -ne 0} # Exclude the group 0 as it's the whole regex match
+                    #     if ($This.ComputerNameRegexp.GroupOrder -notlike '') {
+                    #         ForEach ($RXGroupName in $This.ComputerNameRegexp.GroupOrder) {
+                    #             $Value = $RXGroups | Where-Object Name -eq $RXGroupName | Select-Object -ExpandProperty 'Value'
+                    #             if ($Value -notlike '') {
+                    #                 $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
+                    #             }
+                    #         }
+                    #     }Else{
+                    #         # no order defined use the detected order
+                    #         ForEach ($RXGroupName in $RXGroups) {
+                    #             $Value = $RXGroupName.Value
+                    #             if ($Value -notlike ''){
+                    #                 $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
+                    #             }
+                    #         }
+                    #     }
+                    # }
+                    $ThisComputerPath = $This.ComputerNameRegexp.GetPath($ThisComputerPath,$Computer.($this.ComputerNameRegexp.Property))
                 }
                 # Build the computer object
                 $ComputerObject = [RoyalTSRemoteDesktopConnection]::New()
@@ -356,38 +388,40 @@ Class RoyalTSJson {
             # Handle the ADGroupRules
             $AllADGroupRules = $Rules.ADGroupRules
             if ($AllADGroupRules) {
-                ForEach($ADGroupRule in $AllADGroupRules.ADGroup) {
-                    # Get AdGroups and their Computers matching this rule and add them to the RoyalTSJson
-                    $ADGroupRuleObject = [RoyalTSADGroupRule]::new($ADGroupRule,$Domain)
-                    ForEach($ComputerObject in $ADGroupRuleObject.GetComputers()) {
-                        $RoyalTSJson.Add($ComputerObject)
-                    }
-                }
+                # ForEach($ADGroupRule in $AllADGroupRules.ADGroup) {
+                #     # Get AdGroups and their Computers matching this rule and add them to the RoyalTSJson
+                #     $ADGroupRuleObject = [RoyalTSADGroupRule]::new($ADGroupRule,$Domain)
+                #     ForEach($ComputerObject in $ADGroupRuleObject.GetComputers()) {
+                #         $RoyalTSJson.Add($ComputerObject)
+                #     }
+                # }
+                # using the pipeline
+                $AllADGroupRules.ADGroup | ForEach-Object {([RoyalTSADGroupRule]::new($_,$Domain)).GetComputers()} | ForEach-Object {$RoyalTSJson.Add($_)}
             }
             # Handle the ComputerNameRules
             $AllComputerNameRules = $Rules.ComputerNameRules
             if ($AllComputerNameRules) {
-                ForEach($ADComputerNameRule in $AllComputerNameRules.ComputerName) {
-                    # Get the computers matching this rule and add them to the RoyalTSJson
-                    $ADComputerRuleObject = [RoyalTSADComputerRule]::new($ADComputerNameRule,$Domain)
-                    ForEach($ComputerObject in $ADComputerRuleObject.GetComputers()) {
-                        $RoyalTSJson.Add($ComputerObject)
-                    }
-                }
+                # ForEach($ADComputerNameRule in $AllComputerNameRules.ComputerName) {
+                #     # Get the computers matching this rule and add them to the RoyalTSJson
+                #     $ADComputerRuleObject = [RoyalTSADComputerRule]::new($ADComputerNameRule,$Domain)
+                #     ForEach($ComputerObject in $ADComputerRuleObject.GetComputers()) {
+                #         $RoyalTSJson.Add($ComputerObject)
+                #     }
+                # }
+                $AllComputerNameRules.ComputerName | ForEach-Object {([RoyalTSADComputerRule]::new($_,$Domain)).GetComputers()} | ForEach-Object {$RoyalTSJson.Add($_)}
             }
             $AllVIComputers = $Rules.VIComputerRules
             if ($AllVIComputers) {
-                ForEach($VIComputer in $AllVIComputers.VIComputer) {
-                    #  Get the VI computers matching this rule and add them to the RoyalTSJson
-                    $VIComputerRuleObject = [RoyalTSVIComputerRule]::new($VIComputer,$Domain)
-                    ForEach ($ComputerObject in $VIComputerRuleObject.GetComputers()) {
-                        $RoyalTSJson.Add($ComputerObject)
-                    }
-                }
+                # ForEach($VIComputer in $AllVIComputers.VIComputer) {
+                #     #  Get the VI computers matching this rule and add them to the RoyalTSJson
+                #     $VIComputerRuleObject = [RoyalTSVIComputerRule]::new($VIComputer,$Domain)
+                #     ForEach ($ComputerObject in $VIComputerRuleObject.GetComputers()) {
+                #         $RoyalTSJson.Add($ComputerObject)
+                #     }
+                # }
+                $AllVIComputers.VIComputer | ForEach-Object {([RoyalTSVIComputerRule]::new($_,$Domain)).GetComputers()} | ForEach-Object {$RoyalTSJson.Add($_)}
             }
         }
-        # Handle the VI Computers
-
         # Handle the SingleComputers
         $AllSingleComputers = $DynamicRules.SingleComputers
         if ($AllSingleComputers) {
@@ -403,12 +437,10 @@ Class RoyalTSJson {
                     }Else{
                         $ComputerObject.ComputerName = $Computer.DefaultComputerName
                     }
-
                     $RoyalTSJson.Add($ComputerObject)
                 }
             }
         }
-
         Return $RoyalTSJson
     }
     [void] BuildFolders() {
@@ -613,6 +645,7 @@ Function New-RoyalTSDynamicFolder {
     }
 }
 
+#region expose classes and enums
 ##Expose the classes and enums
 # Define the types to export with type accelerators.
 $ExportableTypes =@(
@@ -648,3 +681,4 @@ $MyInvocation.MyCommand.ScriptBlock.Module.OnRemove = {
         $TypeAcceleratorsClass::Remove($Type.FullName)
     }
 }.GetNewClosure()
+#endregion expose classes and enums
