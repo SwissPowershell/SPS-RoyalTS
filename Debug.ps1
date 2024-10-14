@@ -17,10 +17,10 @@ Write-Host '------------------- Starting script -------------------' -Foreground
 # $RoyalTSObject.ToConsole() | out-file "c:\Temp\RoyalTS_$($Name).json"
 # $RoyalTSObject.ToConsole()
 
-$Name = 'test.biz.lodh.com'
-$RoyalTSObject = New-RoyalTSDynamicFolder -Domain $Name -Name $Name
-$RoyalTSObject.ToConsole() | out-file "c:\Temp\RoyalTS_$($Name).json"
-$RoyalTSObject.ToConsole()
+# $Name = 'test.biz.lodh.com'
+# $RoyalTSObject = New-RoyalTSDynamicFolder -Domain $Name -Name $Name
+# $RoyalTSObject.ToConsole() | out-file "c:\Temp\RoyalTS_$($Name).json"
+# $RoyalTSObject.ToConsole()
 
 # $Name = 'dev.biz.lodh.com'
 # $RoyalTSObject = New-RoyalTSDynamicFolder -Domain $Name -Name $Name

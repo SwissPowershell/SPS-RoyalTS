@@ -12,7 +12,7 @@
     RootModule = 'SPS-RoyalTS.psm1'
     
     # Version number of this module.
-    ModuleVersion = '0.0.5'
+    ModuleVersion = '0.1.0'
     
     # Supported PSEditions
     # CompatiblePSEditions = @()
@@ -110,7 +110,7 @@
             ReleaseNotes = ''
     
             # Prerelease string of this module
-            Prerelease = 'alpha_2'
+            Prerelease = 'alpha_0'
     
         } # End of PSData hashtable
     
