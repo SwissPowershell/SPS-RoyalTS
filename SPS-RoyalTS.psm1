@@ -6,8 +6,9 @@ Enum MessageType {
     Error
 }
 Class RoyalTSRegexp {
+    [String] ${Property} = 'SamAccountName'
     [String] ${Pattern}
-    [String[]] ${GroupOrder}
+    [String[]] ${GroupOrder} = @()
     RoyalTSRegexp([String] $Pattern) {
         $this.Pattern = $Pattern
     }
@@ -16,6 +17,7 @@ Class RoyalTSRegexp {
         $this.GroupOrder = $GroupOrder
     }
     RoyalTSRegexp([System.Xml.XmlElement] $Regexp) {
+        $this.Property = $Regexp.Property
         $this.Pattern = $Regexp.Pattern
         $this.GroupOrder = $Regexp.GroupOrder -split ',|;|\s'
     }
@@ -24,50 +26,288 @@ Class RoyalTSADGroupRule {
     [String] ${Name}
     [String] ${Domain}
     [String] ${Path}
+    [String] ${UserName} = $Env:UserName
+    [String] ${DefaultComputerName}
     [RoyalTSRegexp] ${GroupNameRegexp}
     [RoyalTSRegexp] ${ComputerNameRegexp}
     RoyalTSADGroupRule([String] $Name, [String] $Domain) {
         $this.Name = $Name
         $this.Domain = $Domain
     }
-    RoyalTSADGroupRule([System.Xml.XmlElement] $ADGroup) {
+    RoyalTSADGroupRule([System.Xml.XmlElement] $ADGroup,[String] ${Domain}) {
         $this.Name = $ADGroup.Name
-        $this.Domain = $ADGroup.Domain
+        $this.Domain = $Domain
         $this.Path = $ADGroup.Path
         $this.GroupNameRegexp = [RoyalTSRegexp]::new($ADGroup.GroupNameRegexp)
         $this.ComputerNameRegexp = [RoyalTSRegexp]::new($ADGroup.ComputerNameRegexp)
+        $this.UserName = $ADGroup.UserName
+        $this.DefaultComputerName = $ADGroup.DefaultComputerName
     }
     [System.Collections.Generic.List[RoyalTSObject]] GetComputers() {
-        $List = [System.Collections.Generic.List[RoyalTSObject]]::new()
-        # Get the computers matching the rule
-        
-        Return $List
+        if ($this.Name -notlike '') {
+            $List = [System.Collections.Generic.List[RoyalTSObject]]::new()
+            # Retrieve the default FQDN
+            # $DomainFQDN = Get-ADDomain -Server $this.Domain | Select-Object -ExpandProperty 'DNSRoot'
+            # Get the AD Group matching the Name
+            $ADGroupFilter = "GroupCategory -eq 'Security' -and ObjectClass -eq 'Group' -and SamAccountName -like '$($This.Name)'"
+            $SplatGetGroup = @{
+                Filter = $ADGroupFilter
+                Server = $this.Domain
+            }
+            Try {
+                $AllADGroups = Get-ADGroup @SplatGetGroup
+            }Catch{
+                $Message = "An Unexpected error occurs while getting the AD Groups using filter [$($ADGroupFilter)] on Domain [$($This.Domain)]: $($_.Exception.Message)"
+                Write-RTSLog -Message $Message -Type [MessageType]::Error
+                Throw $Message
+            }
+            $RootPath = $this.Path
+            ForEach ($ADGroup in $AllADGroups) {
+                $ThisGroupPath = $RootPath
+                if ($This.GroupNameRegexp.Pattern -notlike '') {
+                    # there is a pattern defined create the path from it
+                    $RegexResult = $ADGroup.$($this.GroupNameRegexp.Property) | Select-String -Pattern $This.GroupNameRegexp.Pattern -AllMatches
+                    if ($RegexResult) {
+                        # the regex match, apply the order to define the Path
+                        $RXgroups = $RegexResult.Matches.Groups | Where-Object {$_.Name -ne 0} # Exclude the group 0 as it's the whole regex match
+                        if ($This.GroupNameRegexp.GroupOrder.Count -gt 0) {
+                            # Apply the group Order
+                            ForEach ($RXGroupName in $This.GroupNameRegexp.GroupOrder) {
+                                $Value = $RXGroups | Where-Object Name -eq $RXGroupName | Select-Object -ExpandProperty 'Value'
+                                if ($Value -notlike '') {
+                                    $ThisGroupPath = "$($ThisGroupPath)\$($Value)"
+                                }
+                            }
+                        }Else{
+                            # no order defined use the detected order
+                            ForEach ($RXGroupName in $RXGroups) {
+                                $Value = $RXGroupName.Value
+                                if ($Value -notlike ''){
+                                    $ThisGroupPath = "$($ThisGroupPath)\$($Value)"
+                                }
+                            }
+                        }
+                    }
+                }
+                # Retrieve all computers from the group
+                Try {
+                    $AllGroupMembers = Get-ADGroupMember -Identity $ADGroup -Server $this.Domain | Sort-Object Name
+                }Catch{
+                    $Message = "An Unexpected error occurs while getting the AD Group Members using [$($ADGroup)] on Domain [$($This.Domain)]"
+                    Write-RTSLog -Message $Message -Type [MessageType]::Error
+                    Throw $Message
+                }
+                ForEach ($Computer in $AllGroupMembers) {
+                    $ThisComputerPath = $ThisGroupPath
+                    # Build the path if apply
+                    if ($this.ComputerNameRegexp.Pattern -notlike '') {
+                        # there is a patter defined create the path from it
+                        $RegexResult = $Computer.($this.ComputerNameRegexp.Property) | Select-String -Pattern $This.ComputerNameRegexp.Pattern -AllMatches
+                        if ($RegexResult) {
+                            $RXgroups = $RegexResult.Matches.Groups | Where-Object {$_.Name -ne 0} # Exclude the group 0 as it's the whole regex match
+                            if ($This.ComputerNameRegexp.GroupOrder -notlike '') {
+                                ForEach ($RXGroupName in $This.ComputerNameRegexp.GroupOrder) {
+                                    $Value = $RXGroups | Where-Object Name -eq $RXGroupName | Select-Object -ExpandProperty 'Value'
+                                    if ($Value -notlike '') {
+                                        $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
+                                    }
+                                }
+                            }Else{
+                                # no order defined use the detected order
+                                ForEach ($RXGroupName in $RXGroups) {
+                                    $Value = $RXGroupName.Value
+                                    if ($Value -notlike ''){
+                                        $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    # Get the AD Object
+                    $Computer = Get-ADComputer -Identity $Computer
+                    # Build the computer object
+                    $ComputerObject = [RoyalTSRemoteDesktopConnection]::New()
+                    # $ComputerObject.ID = $GroupMember.objectGUID.ToString()
+                    $ComputerObject.Name = $Computer.Name
+                    $ComputerObject.Description = $Computer.distinguishedName
+                    if ($this.DefaultComputerName -notlike '') {
+                        $ComputerObject.ComputerName = $this.DefaultComputerName
+                    }Else{
+                        $ComputerObject.ComputerName = "$($Computer.DNSHostName)"
+                    }
+                    $ComputerObject.UserName = $this.UserName
+                    $ComputerObject.Path = $ThisComputerPath
+                    # Add the computer to the list
+                    $List.Add($ComputerObject)
+                }
+            }
+            Return $List
+        }Else{
+            Return $null
+        }
     }
 }
 Class RoyalTSADComputerRule {
     [String] ${Name}
     [String] ${Domain}
     [String] ${Path}
-    [RoyalTSRegexp] ${Regexp}
+    [String] ${UserName} = $Env:UserName
+    [String] ${DefaultComputerName}
+    [RoyalTSRegexp] ${ComputerNameRegexp}
     RoyalTSADComputerRule([String] $Name, [String] $Domain) {
         $this.Name = $Name
         $this.Domain = $Domain
     }
-    RoyalTSADComputerRule([String] $Name, [String] $Domain,[System.Xml.XmlElement] $Regexp) {
-        $this.Name = $Name
-        $this.Domain = $Domain
-    }
-    RoyalTSADComputerRule([System.Xml.XmlElement] $ADComputer) {
+    RoyalTSADComputerRule([System.Xml.XmlElement] $ADComputer,[String] ${Domain}) {
         $this.Name = $ADComputer.Name
-        $this.Domain = $ADComputer.Domain
+        $this.Domain = $Domain
         $this.Path = $ADComputer.Path
-        $this.Regexp = [RoyalTSRegexp]::new($ADComputer.Regexp)
+        $this.ComputerNameRegexp = [RoyalTSRegexp]::new($ADComputer.ComputerNameRegexp)
+        $this.UserName = $ADComputer.UserName
+        $this.DefaultComputerName = $ADComputer.DefaultComputerName
     }
     [System.Collections.Generic.List[RoyalTSObject]] GetComputers() {
-        $List = [System.Collections.Generic.List[RoyalTSObject]]::new()
-        # Get the computers matching the rule
-        
-        Return $List
+        if ($this.Name -notlike '') {
+            $List = [System.Collections.Generic.List[RoyalTSObject]]::new()
+            # Get the computers matching the rule
+            $Filter = "SamAccountName -like '$($this.Name)'"
+            $SplatGetComputer = @{
+                Filter = $Filter
+                Server = $this.Domain
+            }
+            $AllComputers = Get-ADComputer @SplatGetComputer
+            $RootPath = $this.Path
+            ForEach ($Computer in $AllComputers) {
+                $ThisComputerPath = $RootPath
+                # Build the path if apply
+                if ($this.ComputerNameRegexp.Pattern -notlike '') {
+                    # there is a patter defined create the path from it
+                    $RegexResult = $Computer.($this.ComputerNameRegexp.Property) | Select-String -Pattern $This.ComputerNameRegexp.Pattern -AllMatches
+                    if ($RegexResult) {
+                        $RXgroups = $RegexResult.Matches.Groups | Where-Object {$_.Name -ne 0} # Exclude the group 0 as it's the whole regex match
+                        if ($This.ComputerNameRegexp.GroupOrder -notlike '') {
+                            ForEach ($RXGroupName in $This.ComputerNameRegexp.GroupOrder) {
+                                $Value = $RXGroups | Where-Object Name -eq $RXGroupName | Select-Object -ExpandProperty 'Value'
+                                if ($Value -notlike '') {
+                                    $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
+                                }
+                            }
+                        }Else{
+                            # no order defined use the detected order
+                            ForEach ($RXGroupName in $RXGroups) {
+                                $Value = $RXGroupName.Value
+                                if ($Value -notlike ''){
+                                    $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
+                                }
+                            }
+                        }
+                    }
+                }
+                # Build the computer object
+                $ComputerObject = [RoyalTSRemoteDesktopConnection]::New()
+                # $ComputerObject.ID = $GroupMember.objectGUID.ToString()
+                $ComputerObject.Name = $Computer.Name
+                $ComputerObject.Description = $Computer.distinguishedName
+                if ($this.DefaultComputerName -notlike '') {
+                    $ComputerObject.ComputerName = $this.DefaultComputerName
+                }Else{
+                    $ComputerObject.ComputerName = "$($Computer.DNSHostName)"
+                }
+                $ComputerObject.UserName = $this.UserName
+                $ComputerObject.Path = $ThisComputerPath
+                # Add the computer to the list
+                $List.Add($ComputerObject)
+            }
+            Return $List
+        }Else{
+            Return $Null
+        }
+    }
+}
+Class RoyalTSVIComputerRule {
+    [String] ${Server}
+    [String] ${Name}
+    [String] ${Path}
+    [String] ${UserName}
+    [String] ${Domain}
+    [String] ${DefaultComputerName}
+    [RoyalTSRegexp] ${ComputerNameRegexp}
+    RoyalTSVIComputerRule([System.Xml.XmlElement] $VIComputer,[String] ${Domain}) {
+        $this.Server = $VIComputer.Server
+        $this.Name = $VIComputer.Name
+        $this.Domain = $Domain
+        $this.Path = $VIComputer.Path
+        $this.UserName = $VIComputer.UserName
+        $this.DefaultComputerName = $VIComputer.DefaultComputerName
+        $this.ComputerNameRegexp = [RoyalTSRegexp]::new($VIComputer.ComputerNameRegexp)
+    }
+    [System.Collections.Generic.List[RoyalTSObject]] GetComputers() {
+        if ($this.Name -notlike '') {
+            $List = [System.Collections.Generic.List[RoyalTSObject]]::new()
+            # Connect the VI Server
+            Try {
+                $VIServer = Connect-VIServer -Server $This.Server -Verbose:$False
+            }Catch{
+                $Message = "Unable to connect to VIServer [$($This.Server)]: $($_.Exception.Message)"
+                Write-RTSLog -Message $Message
+                Throw $Message
+            }
+            # Get the VM matching the name
+            $AllVMComputers = Get-VM -Name $this.Name -Server $VIServer -Verbose:$False | Sort-Object 'Name'
+            $RootPath = $this.Path
+            ForEach ($Computer in $AllVMComputers) {
+                $ThisComputerPath = $RootPath
+                if ($this.ComputerNameRegexp.Pattern -notlike '') {
+                    # there is a patter defined create the path from it
+                    $RegexResult = $Computer.($this.ComputerNameRegexp.Property) | Select-String -Pattern $This.ComputerNameRegexp.Pattern -AllMatches
+                    if ($RegexResult) {
+                        $RXgroups = $RegexResult.Matches.Groups | Where-Object {$_.Name -ne 0} # Exclude the group 0 as it's the whole regex match
+                        if ($This.ComputerNameRegexp.GroupOrder -notlike '') {
+                            ForEach ($RXGroupName in $This.ComputerNameRegexp.GroupOrder) {
+                                $Value = $RXGroups | Where-Object Name -eq $RXGroupName | Select-Object -ExpandProperty 'Value'
+                                if ($Value -notlike '') {
+                                    $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
+                                }
+                            }
+                        }Else{
+                            # no order defined use the detected order
+                            ForEach ($RXGroupName in $RXGroups) {
+                                $Value = $RXGroupName.Value
+                                if ($Value -notlike ''){
+                                    $ThisComputerPath = "$($ThisComputerPath)\$($Value)"
+                                }
+                            }
+                        }
+                    }
+                }
+                # Build the computer object
+                $ComputerObject = [RoyalTSRemoteDesktopConnection]::New()
+                # $ComputerObject.ID = $GroupMember.objectGUID.ToString()
+                $ComputerObject.Name = $Computer.Name
+                $ComputerObject.Description = $Computer.Guest
+                if ($this.DefaultComputerName -notlike '') {
+                    $ComputerObject.ComputerName = $this.DefaultComputerName
+                }Else{
+                    # Search for the ip Address
+                    $IPAddress = $Computer.ExtensionData.Guest.IPAddress
+                    if ($IPAddress -notlike '') {
+                        $ComputerObject.ComputerName = $IPAddress
+                    }Else{
+                        $ComputerObject.ComputerName = $Computer.ExtensionData.Guest.HostName
+                    }
+                }
+                $ComputerObject.UserName = $this.UserName
+                $ComputerObject.Path = $ThisComputerPath
+                # Add the computer to the list
+                $List.Add($ComputerObject)
+
+            }
+            # Disconnect the VI Server
+            Disconnect-VIServer -Server $VIServer -Verbose:$False -Force -Confirm:$False -ErrorAction SilentlyContinue | out-null
+            Return $List
+        }Else{
+            Return $Null
+        }
     }
 }
 #endregion Define the Module Class and Enums
@@ -106,9 +346,9 @@ Class RoyalTSJson {
         $this.Objects.Add($Object)
     }
     [String] ToConsole() {
-        Return ($this | ConvertTo-Json -Depth 100 | Write-Host)
+        Return ($this | ConvertTo-Json -Depth 100 | Write-output)
     }
-    static [RoyalTSJson] FromRules([System.Xml.XmlElement] ${DynamicRules}) {
+    static [RoyalTSJson] FromRules([System.Xml.XmlElement] ${DynamicRules},[String] $Domain) {
         $RoyalTSJson = [RoyalTSJson]::new()
         # Handle the Rules
         $Rules = $DynamicRules.Rules
@@ -118,9 +358,9 @@ Class RoyalTSJson {
             if ($AllADGroupRules) {
                 ForEach($ADGroupRule in $AllADGroupRules.ADGroup) {
                     # Get AdGroups and their Computers matching this rule and add them to the RoyalTSJson
-                    $ADGroupRuleObject = [RoyalTSADGroupRule]::new($ADGroupRule)
-                    ForEach($Computer in $ADGroupRuleObject.GetComputers()) {
-                        $RoyalTSJson.Add($Computer)
+                    $ADGroupRuleObject = [RoyalTSADGroupRule]::new($ADGroupRule,$Domain)
+                    ForEach($ComputerObject in $ADGroupRuleObject.GetComputers()) {
+                        $RoyalTSJson.Add($ComputerObject)
                     }
                 }
             }
@@ -129,20 +369,46 @@ Class RoyalTSJson {
             if ($AllComputerNameRules) {
                 ForEach($ADComputerNameRule in $AllComputerNameRules.ComputerName) {
                     # Get the computers matching this rule and add them to the RoyalTSJson
-                    $ADComputerRuleObject = [RoyalTSADComputerRule]::new($ADComputerNameRule)
-                    ForEach($Computer in $ADComputerRuleObject.GetComputers()) {
-                        $RoyalTSJson.Add($Computer)
+                    $ADComputerRuleObject = [RoyalTSADComputerRule]::new($ADComputerNameRule,$Domain)
+                    ForEach($ComputerObject in $ADComputerRuleObject.GetComputers()) {
+                        $RoyalTSJson.Add($ComputerObject)
+                    }
+                }
+            }
+            $AllVIComputers = $Rules.VIComputerRules
+            if ($AllVIComputers) {
+                ForEach($VIComputer in $AllVIComputers.VIComputer) {
+                    #  Get the VI computers matching this rule and add them to the RoyalTSJson
+                    $VIComputerRuleObject = [RoyalTSVIComputerRule]::new($VIComputer,$Domain)
+                    ForEach ($ComputerObject in $VIComputerRuleObject.GetComputers()) {
+                        $RoyalTSJson.Add($ComputerObject)
                     }
                 }
             }
         }
+        # Handle the VI Computers
+
         # Handle the SingleComputers
         $AllSingleComputers = $DynamicRules.SingleComputers
         if ($AllSingleComputers) {
-            ForEach($SingleComputer in $AllSingleComputers.SingleComputer) {
-                # Get the single computer and add it to the RoyalTSJson
+            ForEach($Computer in $AllSingleComputers.SingleComputer) {
+                if ($Computer.Name -Notlike '') {
+                    # Get the single computer and add it to the RoyalTSJson
+                    $ComputerObject = [RoyalTSRemoteDesktopConnection]::New()
+                    $ComputerObject.Name = $Computer.Name
+                    $ComputerObject.UserName = $Computer.UserName
+                    $ComputerObject.Path = $Computer.Path
+                    if ($Computer.DefaultComputerName -like '') {
+                        $ComputerObject.ComputerName = $Computer.ComputerName
+                    }Else{
+                        $ComputerObject.ComputerName = $Computer.DefaultComputerName
+                    }
+
+                    $RoyalTSJson.Add($ComputerObject)
+                }
             }
         }
+
         Return $RoyalTSJson
     }
     [void] BuildFolders() {
@@ -153,7 +419,7 @@ Class RoyalTSObject {
     [String] ${Id} = [Guid]::NewGuid().ToString()
     [String] ${Name}
     [String] ${Description}
-    [RoyalTSObjectType] ${Type}
+    [String] ${Type}
     RoyalTSObject(){}
     RoyalTSObject([String] $Name, [String] $Description) {
         $this.Name = $Name
@@ -188,7 +454,9 @@ Class RoyalTSRemoteDesktopConnection : RoyalTSObject {
     [String] ${UserName}
     [String] ${Path}
     [Boolean] ${CredentialsFromParent} = $false
-    RoyalTSRemoteDesktopConnection(){}
+    RoyalTSRemoteDesktopConnection(){
+        $this.Type = [RoyalTSObjectType]::RemoteDesktopConnection
+    }
     RoyalTSRemoteDesktopConnection([String] $Name, [String] $Description, [String] $ComputerName, [String] $UserName, [String] $Path) {
         $this.Name = $Name
         $this.Description = $Description
@@ -213,7 +481,7 @@ Function Write-RTSLog {
         }Catch {
             Throw "An unexpected error occured while creating the log file $($LogPath): $($_.Exception.Message)"
         }
-        
+
     }
     $LogMessage = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$($Type.ToString())] $($Message)"
     Try {
@@ -269,13 +537,15 @@ Open for editing?
         $Message = "The default configuration file [$($DefaultConfigPath)} does not exist"
         Throw $Message
     }
-    
+
 }
 Function New-RoyalTSDynamicFolder {
     [CmdletBinding()]
     Param(
         [String] ${Name} = 'Default',
-        [String] ${ConfigurationFile} = $(Join-Path -Path $Env:APPDATA -ChildPath "SPS-RoyalTS\RoyalTSConfiguration_$($Name).xml")
+        [String] ${ConfigurationFile} = $(Join-Path -Path $Env:APPDATA -ChildPath "SPS-RoyalTS\RoyalTSConfiguration_$($Name).xml"),
+        [Parameter(Mandatory)]
+        [String] ${Domain}
     )
     Begin {
         Write-Verbose -Message "Starting the function $($MyInvocation.MyCommand)"
@@ -330,8 +600,8 @@ Function New-RoyalTSDynamicFolder {
         # Check if the configuration file has dynamic folders
         if ($DynamicFolderConfig) {
             # Get the dynamic folders rule
-            $Json = [RoyalTSJson]::FromRules($DynamicFolderConfig)
-            $Json.ToConsole()
+            $RoyalTSObject = [RoyalTSJson]::FromRules($DynamicFolderConfig,$Domain)
+            Return $RoyalTSObject
         }Else{
             $Message = "The configuration file $($ConfigurationFile) does not have any dynamic folder entry the function $($MyInvocation.MyCommand) will not do anything"
             Write-RTSLog -Message $Message -Type Warning
